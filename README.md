@@ -4,23 +4,104 @@
 Our network has no deception layer — attackers scan freely and can map out real services without detection.
 
 ## Solution
-We deployed a Honeypot Network with 4 fake services (SSH, HTTP, SMB, FTP) that do nothing except log every attacker who touches them. Attackers think they found real servers, but every connection they make is silently recorded, fingerprinted, and reported. This provides us with instant alerts and threat intelligence about the scanning tools being used.
+We deployed a Honeypot Network with 4 fake services (SSH, HTTP, SMB, RDP) that do nothing except log every attacker who touches them. Attackers think they found real servers, but every connection they make is silently recorded, fingerprinted, and reported. This provides us with instant alerts and threat intelligence about the scanning tools being used.
 
 ## How to Run
 
 Install requirements:
 ```bash
-pip install flask
+pip install -r requirements.txt
 ```
 
-Start the services (run each in a separate terminal):
+### Terminal 1 — Honeypot Server
+
+Move to the backend folder:
 ```bash
-python3 ssh_honeypot.py
-python3 dashboard.py
-python3 fingerprint.py
+cd "C:\Users\Manikanta\Downloads\hackathon-defense-main\hackathon-defense-main\honeypot-project\backend"
+```
+
+Start the honeypot:
+```bash
+python ssh_honeypot.py
+```
+
+Expected output:
+```
+[*] SSH honeypot listening on port 2222
+[*] HTTP honeypot listening on port 8080
+[*] SMB honeypot listening on port 4445
+[*] RDP honeypot listening on port 3389
+[*] All honeypot services running
+```
+
+When an attacker connects, you will see live alerts:
+```
+[ALERT] HTTP hit from 127.0.0.1
+[ALERT] SSH hit from 127.0.0.1
+[ALERT] SMB hit from 127.0.0.1
+```
+
+### Terminal 2 — Dashboard
+
+```bash
+python dashboard.py
 ```
 
 Open the live dashboard at `http://localhost:5000`
+
+### Terminal 3 — Threat Intelligence Report
+
+```bash
+python fingerprint.py
+```
+
+Expected output:
+```
+THREAT INTELLIGENCE REPORT
+Tool   : Nmap / Port Scanner
+MITRE  : T1046, T1595
+```
+
+---
+
+## Testing (Attacker Simulation)
+
+Open a separate terminal and move to the backend folder:
+```bash
+cd "C:\Users\Manikanta\Downloads\hackathon-defense-main\hackathon-defense-main\honeypot-project\backend"
+```
+
+**1. Scan honeypot ports:**
+```bash
+nmap -Pn -sT -p 2222,8080,3389,4445 127.0.0.1
+```
+Expected output:
+```
+2222/tcp open
+3389/tcp open
+4445/tcp open
+8080/tcp open
+```
+
+**2. Simulate HTTP attack:**
+```bash
+curl http://localhost:8080/admin
+```
+Expected output:
+```
+<h1>Admin Panel</h1>
+```
+
+**3. View captured logs:**
+```bash
+type honeypot_logs.json
+```
+Expected output:
+```json
+{"service":"HTTP","attacker_ip":"127.0.0.1"}
+```
+
+---
 
 ## Services
 
@@ -29,33 +110,34 @@ Open the live dashboard at `http://localhost:5000`
 | SSH | 2222 | Linux remote login server | Logs IP, banner grab, credentials tried |
 | HTTP | 8080 | Admin web panel | Logs all requests, paths, headers |
 | SMB | 4445 | Windows file server | Logs connection attempts and payloads |
-| FTP | 2121 | File transfer server | Logs IP and login commands attempted |
-
-## Test It
-
-```bash
-# Port scan — triggers T1046 detection
-nmap -sV -p 2222,8080,4445,2121 localhost
-
-# Hit the fake admin panel
-curl http://localhost:8080/admin
-
-# Simulate FTP login attempt
-nc localhost 2121   # then type: USER root
-
-# SSH banner grab
-telnet localhost 2222
-```
+| RDP | 3389 | Windows remote desktop | Logs connection attempts and payloads |
 
 ## Project Structure
 
 ```
-honeypot-hackathon/
-├── ssh_honeypot.py      # All 4 fake services — SSH, HTTP, SMB, FTP
-├── dashboard.py         # Flask live dashboard at localhost:5000
-├── fingerprint.py       # Attacker fingerprinting + threat intel report
-├── honeypot_logs.json   # Auto-created log file (append-only)
-└── README.md
+hackathon-defense-main/
+├── honeypot-project/
+│   ├── attacker-simulator/
+│   │   └── .gitkeep
+│   ├── backend/
+│   │   ├── logs/
+│   │   ├── app.py
+│   │   ├── dashboard.py
+│   │   ├── Dockerfile
+│   │   ├── fingerprint.py
+│   │   ├── honeypot_logs.json
+│   │   ├── honeypot_server.py
+│   │   ├── http_service.py
+│   │   ├── logger.py
+│   │   ├── rdp_service.py
+│   │   ├── requirements.txt
+│   │   ├── smb_service.py
+│   │   ├── ssh_honeypot.py
+│   │   └── ssh_service.py
+│   └── docs/
+│       └── .gitkeep
+├── README.md
+└── .gitignore
 ```
 
 ## MITRE ATT&CK Mapping
